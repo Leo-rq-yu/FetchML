@@ -1,0 +1,8 @@
+version: '3.4'
+services:
+  fetch-ML-oa:
+    restarts: always
+    container_name: fetch-ML-oa
+    image: fetch-ML-oa
+    build:
+      context: build seccesses.
