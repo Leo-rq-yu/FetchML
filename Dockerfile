@@ -1,6 +1,9 @@
-FROM python:3.8.10
-ADD requirements.txt /
-RUN pip install -r /requirements.txt
-ADD fetchmloa.py /
-ENV PYTHONUNBUFFERED=1
-CMD ["python","./fetchmloa.py"]
+FROM python:3.8
+WORKDIR /FetchML
+
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+
+COPY . .
+
+CMD ["python3","-m","flask","run"]

@@ -1,0 +1,73 @@
+<!doctype html>
+<html>
+ <body>
+  <h1>Forecast number of receipt by ARIMA Model</h1>
+  <div id='chart' class='chart'></div>
+  <script src='https://cdn.plot.ly/plotly-latest.min.js'></script>
+  <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>-->
+  <script type='text/javascript'>
+    var graphs = {{ graphJSON | safe}};
+    Plotly.plot('chart',graphs,{});
+  </script>
+  <form action="/adf_test" method="POST">
+    <input type='submit' value="Click me to see ADF Test Result">
+    <center>
+      {% if mes %}
+      <h2> Augmented Dickey-Fuller Test(ADF Test): Used to test the stationary of a time series. </h2>
+      {% for para in mes%}
+      <p>
+        {{para}}
+      </p>
+      {% endfor %}
+      <p> The null hypothesis is that the series is stationary. It this series reject the null hypothesis, then I have to convert the series to stationary. </p>
+      {% endif %}
+    </center> 
+  </form>
+  <form action="/acf_plot" method="GET">
+    <input type='submit' value="Click me to see ACF Plot and PACF plot"> 
+    <center>
+      {% if graphs %}
+      <h2> Check Auto-Correlated function(ACF) and partial ACF(PACF). </h2>
+      <p> ACF used to describe the relation between the current term and all the lagged terms, while PACF only focus on the relation between the current term and the selected lagged term. </p>
+      <img src={{url_for('static', filename='acf_plot.png')}} algin="middle"/>
+      <img src={{url_for('static', filename='pacf_plot.png')}} algin="middle"/>
+      <p> We can see that both plots decline gradually. Thus, we can use ARMA model. <br>
+        In the PACF plot, the value converge to 0 at 8, so we can set the number of AR term, "p", to 8. In the ACF plot, the value becomes unsignificant at 2, so we can set the parameter for MA ,"q", to be 2. </p>        
+      {% endif %}
+    </center>
+  </form>
+  <form action="/ml_plot" method="GET">
+    <input type='submit' value="Click me to see ARIMA model training.">
+    <center>
+      {% if Trained %}
+      <h2> Aotu Regressive </h2>
+      <p> Use linear regression to calculate how does the value of the current term depends on its p previous lagged terms. The model uses coefficients in linear regression for each lagged term to represent the relation.      </p>
+      <p> {{AR_mes}} </p>
+      <img src={{url_for('static', filename='AR_plot.png')}} algin="middle"/>
+      <p> By the PACF plot, I set the p equal 8. The RMSE is 0.0304 so it's small enough. <br> Use the plot to check the fitness. </p>
+      <p> Generating the residuals for MA model. Also check the residual plot to see if there are skewness. </p>
+      <img src={{url_for('static', filename='res_plot.png')}} algin="middle"/>
+      <h2>  Moving Average </h2>
+      <p> Use linear regression to solve the number of lagged forecast errors in the prediction equaion. Also this step can help remove noise and smooth data. </p>
+      <p> Merge the residual prediction back to the prediction value. We can see that now the predicted data fits better with the original data. </p>
+      <p> {{MA_mes}} </p>
+      <img src={{url_for('static', filename='MA_plot.png')}} algin="middle"/>
+      {% endif %}
+    </center>
+  </form>
+  <form action="/fit_plot" method="GET">
+    <input type='submit' value="Click me to see the fitted plot"> 
+    <center>
+      {% if Fitted %}
+      <h2> Getting back Origin Data </h2>
+      <p> Reversing the steps performed for differencing. Check the first column is the same after reversing the steps. </p>
+      <img src={{url_for('static', filename='fitted.png')}} algin="middle"/>
+      <p> As you can see from the above plot, the predicted value generally follow the origin data, and this model is valid for further prediction. </p>
+      {% endif %}
+    </center>
+  </form>
+  <form action='/' method='POST'>
+    <input type='submit' value='Click me back to home page'>
+  </form>
+</body>
+</html>

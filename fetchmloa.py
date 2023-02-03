@@ -15,12 +15,11 @@ from sklearn.metrics import mean_squared_error
 from statsmodels.tsa.stattools import adfuller
 from statsmodels.graphics.tsaplots import plot_acf,plot_pacf
 
-"""#### Read in data"""
 
-data = pd.read_csv('data_daily.csv')
 
-plt.figure(figsize=(25,10))
-plt.plot(data['Receipt_Count'])
+def plot_data(data):
+  plt.figure(figsize=(25,10))
+  plt.plot()
 
 """### Augmented Dickey-Fuller Test(ADF Test): Used to test the stationary of a time series.
 The null hypothesis is that the series is stationary. It this series reject the null hypothesis, then I have to convert the series to stationary. 
@@ -31,30 +30,35 @@ def adf_check(time_series):
     Pass in a time series, returns ADF report
     """
     result = adfuller(time_series)
-    print('Augmented Dickey-Fuller Test:')
+    mes = 'Augmented Dickey-Fuller Test: \n'
     labels = ['ADF Test Statistic','p-value','Number of Lags Used','Number of Observations Used']
 
     for value,label in zip(result,labels):
-        print(label+' : '+str(value) )
+        mes += label + ' : '+str(value) + '\n'
     
     if result[1] <= 0.05:
-        print("strong evidence against the null hypothesis, reject the null hypothesis. Data has no unit root and is stationary")
+        mes += "strong evidence against the null hypothesis, reject the null hypothesis. Data has no unit root and is stationary"
     else:
-        print("weak evidence against null hypothesis, time series has a unit root, indicating it is non-stationary \n")
+        mes += "weak evidence against null hypothesis, time series has a unit root, indicating it is non-stationary \n"
+    return mes
+        
+def data_t(data):
+  data_testing = pd.DataFrame(np.log(data['Receipt_Count']).diff().diff(28))
+  message = adf_check(data_testing['Receipt_Count'].dropna())
+  return message
 
-data_testing = pd.DataFrame(np.log(data['Receipt_Count']).diff().diff(12))
-
-adf_check(data_testing['Receipt_Count'].dropna())
 
 """### Check Auto-Correlated function(ACF) and partial ACF(PACF).
 ACF used to describe the relation between the current term and all the lagged terms, while PACF only focus on the relation between the current term and the selected lagged term.
 """
-
-ACF = plot_acf(data_testing.dropna(),lags=30)
-PACF = plot_pacf(data_testing.dropna(),lags=30)
+def ACF_plot(data):
+  data_testing = pd.DataFrame(np.log(data['Receipt_Count']).diff().diff(28))
+  ACF = plot_acf(data_testing.dropna(),lags=30)
+  PACF = plot_pacf(data_testing.dropna(),lags=30)
+  return ACF, PACF
 
 """We can see that both plots decline gradually. Thus, we can use ARMA model.
-In the PACF plot, the value converge to 0 at 14, so we can set the number of AR term, "p", to 14. In the ACF plot, the value becomes unsignificant at 5, so we can set the parameter for MA ,"q", to be 5.
+In the PACF plot, the value converge to 0 at 8, so we can set the number of AR term, "p", to 8. In the ACF plot, the value becomes unsignificant at 2, so we can set the parameter for MA ,"q", to be 2.
 
 ### Aotu Regressive
 Use linear regression to calculate how does the value of the current term depends on its p previous lagged terms. The model uses coefficients in linear regression for each lagged term to represent the relation.
@@ -93,24 +97,24 @@ def AR(p,data):
 
   RMSE = np.sqrt(mean_squared_error(data_test['Receipt_Count'], data_test['Predicted_Values']))
 
-  print("The RMSE is :", RMSE,", Value of p : ",p)
-  return [data_train_2,data_test,theta,intercept,RMSE]
+  mes = "The RMSE is :" + str(RMSE) + ", Value of p : " + str(p)
+  return [data_train_2,data_test,theta,intercept,RMSE, mes]
 
-[data_train,data_test,theta,intercept,RMSE] = AR(14,pd.DataFrame(data_testing['Receipt_Count']))
+# [data_train,data_test,theta,intercept,RMSE] = AR(8,pd.DataFrame(data_testing['Receipt_Count']))
 
-"""By the PACF plot, I set the p equal 14. The RMSE is 0.0305 so it's small enough. \\
+"""By the PACF plot, I set the p equal 8. The RMSE is 0.0304 so it's small enough. \\
 Use the plot to check the fitness.
 """
 
-data_c = pd.concat([data_train,data_test])
-data_c[['Receipt_Count','Predicted_Values']].iloc[0:50].plot(figsize=(10,10))
+# data_c = pd.concat([data_train,data_test])
+# data_c[['Receipt_Count','Predicted_Values']].iloc[0:50].plot(figsize=(10,10))
 
 """Generating the residuals for MA model. Also check the residual plot to see if there are skewness. """
 
-res = pd.DataFrame()
-res['Residuals'] = data_c['Receipt_Count'] - data_c.Predicted_Values
+# res = pd.DataFrame()
+# res['Residuals'] = data_c['Receipt_Count'] - data_c.Predicted_Values
 
-res.plot(kind='kde')
+# res.plot(kind='kde')
 
 """### Moving Average
 Use linear regression to solve the number of lagged forecast errors in the prediction equaion. Also this step can help remove noise and smooth data. 
@@ -146,33 +150,33 @@ def MA(q,res):
   from sklearn.metrics import mean_squared_error
   RMSE = np.sqrt(mean_squared_error(res_test['Residuals'], res_test['Predicted_Values']))
 
-  print("The RMSE is :", RMSE,", Value of q : ",q)
-  return [res_train_2,res_test,theta,intercept,RMSE]
+  mes = "The RMSE is :" + str(RMSE) + ", Value of q : " + str(q)
+  return [res_train_2,res_test,theta,intercept,RMSE, mes]
 
-[res_train,res_test,theta,intercept,RMSE] = MA(5,pd.DataFrame(res.Residuals))
-print(theta)
-print(intercept)
+# [res_train,res_test,theta_res,intercept_res,RMSE] = MA(2,pd.DataFrame(res.Residuals))
 
 """Merge the residual prediction back to the prediction value. We can see that now the predicted data fits better with the original data. """
 
-res_c = pd.concat([res_train,res_test])
-data_c.Predicted_Values += res_c.Predicted_Values
+# res_c = pd.concat([res_train,res_test])
+# data_c.Predicted_Values += res_c.Predicted_Values
 
-data_c[['Receipt_Count','Predicted_Values']].iloc[0:50].plot(figsize=(10,10))
+# data_c[['Receipt_Count','Predicted_Values']].iloc[0:50].plot(figsize=(10,10))
 
 """### Getting back Origin Data
 Reversing the steps performed for differencing. Check the first column is the same after reversing the steps.
 """
 
-data_c.Receipt_Count += pd.DataFrame(np.log(data['Receipt_Count'])).shift(1).Receipt_Count
-data_c.Receipt_Count += pd.DataFrame(np.log(data['Receipt_Count'])).diff().shift(28).Receipt_Count
-data_c.Predicted_Values += pd.DataFrame(np.log(data['Receipt_Count'])).shift(1).Receipt_Count 
-data_c.Predicted_Values += pd.DataFrame(np.log(data['Receipt_Count'])).diff().shift(28).Receipt_Count
-data_c.Receipt_Count = np.exp(data_c['Receipt_Count'])
-data_c.Predicted_Values = np.exp(data_c.Predicted_Values)
+# data_c.Receipt_Count += pd.DataFrame(np.log(data['Receipt_Count'])).shift(1).Receipt_Count
+# data_c.Receipt_Count += pd.DataFrame(np.log(data['Receipt_Count'])).diff().shift(28).Receipt_Count
+# data_c.Predicted_Values += pd.DataFrame(np.log(data['Receipt_Count'])).shift(1).Receipt_Count 
+# data_c.Predicted_Values += pd.DataFrame(np.log(data['Receipt_Count'])).diff().shift(28).Receipt_Count
+# data_c.Receipt_Count = np.exp(data_c['Receipt_Count'])
+# data_c.Predicted_Values = np.exp(data_c.Predicted_Values)
 
-data_c
 
-data_c[['Receipt_Count','Predicted_Values']].plot(figsize=(25,10))
+# data_c[['Receipt_Count','Predicted_Values']].plot(figsize=(25,10))
 
 """As you can see from the above plot, the predicted value generally follow the origin data, and this model is valid for further prediction. \\"""
+
+def Pred(theta, inter, res_theta, res_inter):
+  return
